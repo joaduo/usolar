@@ -1,0 +1,129 @@
+<html>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+
+<title>uRiego</title>
+
+
+<style>
+.btn {
+  background-color: #4CAF50; /* Green */
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+}
+.btn2 {background-color: #008CBA;} /* Blue */
+.btn_stop {background-color: #d66;} /* Red */
+.btn_status {background-color: #666;} /* Gray */
+
+</style>
+
+<body>
+
+  <script type="module">
+    import { createApp } from '/static/petite-vue-module.min.js'
+    var host = ''
+
+    async function getAPI(endpoint){
+        let url = host + '/' + endpoint;
+        let headers =  {
+            'Content-type': 'text/plain'
+        };
+        let request = {
+            method:"GET",
+            headers
+        };
+        let page = await fetch(url,request);
+        let json = await page.json();
+        console.log(json);
+        return json
+    }
+
+    async function postAPI(endpoint, payload){
+        let url = host + '/' + endpoint;
+        let data = {"auth_token":"1234", "payload":payload}
+        let headers =  {
+            'Content-type': 'text/plain'
+        };
+        //console.log(headers)
+        console.log(data)
+        let request = {
+            method:"POST",
+            body:JSON.stringify(data),
+            headers
+        };
+        let page = await fetch(url,request);
+        let json = await page.json();
+        console.log(json);
+        return json
+    }
+
+    createApp({
+      arribaMin: 10,
+      abajoMin: 20,
+      status: {running:{}, queue:[]},
+      refresh: false,
+      async statusRefresh(){
+        this.refresh = ! this.refresh
+        this.getStatus(true)
+      },
+      async getStatus(repeat){
+        this.status['running'] = await getAPI('running')
+        this.status['queue'] = await getAPI('manual')
+        if(repeat && this.refresh){
+          let self = this
+          setTimeout(function (){self.getStatus(repeat)}, 10000)
+        }
+      },
+      async postStop(){
+        //await postAPI('stop', {stop_all:true})
+        this.getStatus(false)
+      },
+      async postManual(zone, duration){
+        //duration is in seconds, convert minutes to seconds
+        //await postAPI('manual', )
+        this.getStatus(false)
+      },
+      toTime(seconds){
+        let min = Math.floor(seconds/60)
+        let sec = seconds%60
+        let time = ''
+        if(min){
+          time = min + ' min'
+          if(sec)
+            time = time + ' '
+        }
+        if(sec)
+          time = time + sec + ' sec'
+        return  time
+      }
+    }).mount()
+  </script>
+
+  <div v-scope>
+    <p><button id='status' class='btn btn_status' @click='statusRefresh()'>Refresh</button> {{refresh}}</p>
+      <p>Running:
+        <ul id="runningList">
+          <li v-for="remaining, name in status.running">
+            {{ name }}: {{ toTime(remaining) }}
+          </li>
+        </ul>
+      </p>
+      <p>Queue:
+        <ul id="queueList">
+          <li v-for="item in status.queue.reverse()">
+            {{ item[0] }}: {{ toTime(item[1]['duration']) }}
+          </li>
+        </ul>
+      </p>
+  </div>
+
+</body>
+
+
+
+</html>
+
