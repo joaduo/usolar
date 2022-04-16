@@ -36,6 +36,11 @@ class HistoryLog:
         self.save_time = utime.time() - time_start
         self.memory_threshold = 30000
 
+    def latest_read(self):
+        chargerv = self.history['charger'][-1][0] if self.history['charger'] and self.enabled else charger.read()
+        panelsv =  self.history['panels'][-1][0] if self.history['panels'] and self.enabled else panels.read()
+        return dict(charger=chargerv, panels=panelsv)
+
     def set_json(self, cfg):
         for name, value in cfg.items():
             if name == 'enabled' and value != self.enabled:

@@ -22,7 +22,7 @@ async def serve_request(verb, path, request_trailer):
     content_type = 'application/json'
     status = 200
     if path == b'/voltages':
-        payload = ujson.dumps(dict(charger=solar.charger.read(), panels=solar.panels.read()))
+        payload = ujson.dumps(solar.historylog.latest_read())
     elif path == b'/history':
         if verb == webserver.POST:
             cfg = webserver.extract_json(request_trailer)
