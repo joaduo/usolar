@@ -4,13 +4,11 @@ import machine
 import utime
 import log
 import webserver
-# import devices
+import solar
 
 
-LIGHT_PIN=2
-#light = devices.InvertedPin(LIGHT_PIN, machine.Pin.OUT)
+LIGHT_PIN = 2
 light = machine.Pin(LIGHT_PIN, machine.Pin.OUT)
-
 
 async def blink():
     light.off()
@@ -24,12 +22,25 @@ async def serve_request(verb, path, request_trailer):
     content_type = 'application/json'
     status = 200
     if path == b'/voltages':
-        payload = ujson.dumps(dict(charger=0))
+        payload = ujson.dumps(dict(charger=solar.charger.read(), panels=solar.panels.read()))
+    elif path == b'/history':
+        if verb == webserver.POST:
+            cfg = webserver.extract_json(request_trailer)
+            solar.historylog.set_json(cfg)
+        payload = ujson.dumps(solar.historylog.get_json())
+    elif path == b'/relays':
+        ...
+    elif path == b'/resiston':
+        solar.resistance.on()
+        payload = ujson.dumps(dict(result='on'))
+    elif path == b'/resistoff':
+        solar.resistance.off()
+        payload = ujson.dumps(dict(result='off'))
     else:
         content_type = 'text/html'
         if path == b'/':
             resp = webserver.response(status, content_type, '')
-            return resp, webserver.serve_file('/static/client.html')
+            return resp, webserver.serve_file('/client.html')
         else:
             status = 404
             payload = webserver.web_page('404 Not found')
@@ -42,11 +53,12 @@ def main():
     server = webserver.Server(serve_request)
     server.static_path = b'/static/'
     log.garbage_collect()
+    log.LOG_LEVEL = log.DEBUG
     try:
         light.on()
+        solar.resistance.off()
         uasyncio.run(server.run())
-        uasyncio.get_event_loop().run_forever()
-        #uasyncio.run(riego.loop_tasks())
+        uasyncio.run(solar.loop_tasks())
     finally:
         uasyncio.run(server.close())
         _ = uasyncio.new_event_loop()
@@ -55,4 +67,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 

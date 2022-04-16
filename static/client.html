@@ -62,60 +62,72 @@
     }
 
     createApp({
-      arribaMin: 10,
-      abajoMin: 20,
-      status: {running:{}, queue:[]},
+      refreshPeriod: 2,
+      status: {voltages: {}},
+      history_cfg: {},
+      history: {},
       refresh: false,
       async statusRefresh(){
         this.refresh = ! this.refresh
         this.getStatus(true)
       },
       async getStatus(repeat){
-        this.status['running'] = await getAPI('running')
-        this.status['queue'] = await getAPI('manual')
+        this.status['voltages'] = await getAPI('voltages')
         if(repeat && this.refresh){
           let self = this
-          setTimeout(function (){self.getStatus(repeat)}, 10000)
+          setTimeout(function (){self.getStatus(repeat)}, 1000 * this.refreshPeriod)
         }
       },
-      async postStop(){
-        //await postAPI('stop', {stop_all:true})
-        this.getStatus(false)
+      async setHistoryCfg(){
+        this.getHistoryCfg(await postAPI('history', this.history_cfg))
       },
-      async postManual(zone, duration){
-        //duration is in seconds, convert minutes to seconds
-        //await postAPI('manual', )
-        this.getStatus(false)
+      async getHistoryCfg(cfg){
+        if(!cfg)
+            this.history_cfg = await getAPI('history')
+        else
+            this.history_cfg = cfg
+        if(this.history_cfg.hasOwnProperty('history'))
+            delete this.history_cfg.history
       },
-      toTime(seconds){
-        let min = Math.floor(seconds/60)
-        let sec = seconds%60
-        let time = ''
-        if(min){
-          time = min + ' min'
-          if(sec)
-            time = time + ' '
-        }
-        if(sec)
-          time = time + sec + ' sec'
-        return  time
-      }
+      async toggleHistory(){
+        let cfg = await getAPI('history')
+        this.history = await postAPI('history', {enabled: !cfg.enabled})
+      },
+      async refreshHistory(){
+        this.history = await getAPI('history')
+      },
+      async resistOn(){
+        await getAPI('resiston')
+      },
+      async resistOff(){
+        await getAPI('resistoff')
+      },
+      async mounted(){
+        await this.getHistoryCfg()
+      },
     }).mount()
   </script>
 
-  <div v-scope>
-    <p><button id='status' class='btn btn_status' @click='statusRefresh()'>Refresh</button> {{refresh}}</p>
+  <div v-scope @vue:mounted="mounted">
+    <h2>History</h2>
+    <p><button id='toggleHistory' class='btn btn_status' @click='setHistoryCfg()'>Set Cfg</button></p>
+    <p><input type='checkbox' id='max_size' v-model='history_cfg.enabled'/> enabled </p>
+    <p><input type='number' id='max_size' v-model='history_cfg.max_size'/> max size </p>
+    <p><input type='number' id='period_tics' v-model='history_cfg.period_tics'/> period in tics </p>
+    <p><button id='refreshHistory' class='btn btn_status' @click='getHistoryCfg()'>Get Cfg</button></p>
+    <p><pre>{{history_cfg}}</pre></p>
+    <p/>
+    <p><button id='refreshHistory' class='btn btn_status' @click='refreshHistory()'>Refresh History</button></p>
+    <p><pre>{{history}}</pre></p>
+    <p/>
+    <p><button id='resiston' class='btn btn_status' @click='resistOn()'>Resistance On</button></p>
+    <p><button id='resistoff' class='btn btn_status' @click='resistOff()'>Resistance Off</button></p>
+    <p><button id='status' class='btn btn_status' @click='statusRefresh()'>Refresh</button> {{refresh}}
+       <input type='text' id='refresh-period' v-model='refreshPeriod'/> period sec</p>
       <p>Running:
         <ul id="runningList">
-          <li v-for="remaining, name in status.running">
-            {{ name }}: {{ toTime(remaining) }}
-          </li>
-        </ul>
-      </p>
-      <p>Queue:
-        <ul id="queueList">
-          <li v-for="item in status.queue.reverse()">
-            {{ item[0] }}: {{ toTime(item[1]['duration']) }}
+          <li v-for="value, name in status.voltages">
+            {{ name }}: {{ value }}
           </li>
         </ul>
       </p>

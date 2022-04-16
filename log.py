@@ -25,17 +25,18 @@ def info(msg, *args, **kwargs):
 
 
 def print_log(msg, *args, **kwargs):
-    if args:
-        msg = msg % args
-    if kwargs:
-        msg = msg.format(**kwargs)
+    if args or kwargs:
+        msg = msg.format(*args, **kwargs)
     print(msg)
 
 
-def garbage_collect():
+def garbage_collect(threshold=MEM_FREE_THRESHOLD):
     orig_free = gc.mem_free()
-    if orig_free < MEM_FREE_THRESHOLD:
+    if orig_free < threshold:
         gc.collect()
+        now_free=gc.mem_free()
         info('GC: was={orig_free}, now={now_free}',
-              orig_free=orig_free, now_free=gc.mem_free())
+              orig_free=orig_free, now_free=now_free)
+        return now_free
+    return orig_free
 
