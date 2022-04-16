@@ -109,28 +109,30 @@
   </script>
 
   <div v-scope @vue:mounted="mounted">
-    <h2>History</h2>
-    <p><button id='toggleHistory' class='btn btn_status' @click='setHistoryCfg()'>Set Cfg</button></p>
+    <h2>Cfg</h2>
     <p><input type='checkbox' id='max_size' v-model='history_cfg.enabled'/> enabled </p>
     <p><input type='number' id='max_size' v-model='history_cfg.max_size'/> max size </p>
     <p><input type='number' id='period_tics' v-model='history_cfg.period_tics'/> period in tics </p>
-    <p><button id='refreshHistory' class='btn btn_status' @click='getHistoryCfg()'>Get Cfg</button></p>
+    <p><button id='toggleHistory' class='btn btn_status' @click='setHistoryCfg()'>Set Cfg</button> <button id='refreshHistory' class='btn btn_status' @click='getHistoryCfg()'>Get Cfg</button></p>
     <p><pre>{{history_cfg}}</pre></p>
     <p/>
-    <p><button id='refreshHistory' class='btn btn_status' @click='refreshHistory()'>Refresh History</button></p>
-    <p><pre>{{history}}</pre></p>
-    <p/>
+    <hr/>
     <p><button id='resiston' class='btn btn_status' @click='resistOn()'>Resistance On</button></p>
     <p><button id='resistoff' class='btn btn_status' @click='resistOff()'>Resistance Off</button></p>
+    <hr/>
     <p><button id='status' class='btn btn_status' @click='statusRefresh()'>Refresh</button> {{refresh}}
-       <input type='text' id='refresh-period' v-model='refreshPeriod'/> period sec</p>
-      <p>Running:
+       <input type='number' id='refresh-period' v-model='refreshPeriod'/> period sec</p>
+      <p>
         <ul id="runningList">
           <li v-for="value, name in status.voltages">
             {{ name }}: {{ value }}
           </li>
         </ul>
       </p>
+    <hr/>
+    <p><button id='refreshHistory' class='btn btn_status' @click='refreshHistory()'>View History</button></p>
+    <p><pre>{{history}}</pre></p>
+    <p/>
   </div>
 
 </body>
