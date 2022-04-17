@@ -26,13 +26,13 @@ class HistoryLog:
         self.detections = {}
         self.enabled = False
         self.max_size = 20
-        self.period_tics = 1
-        self.allow_set = set(('enabled', 'max_size', 'period_tics'))
+        self.period_tics = 4
+        self.save_period_sec = 60
+        self.allow_set = set(('enabled', 'max_size', 'period_tics', 'save_period_sec'))
         self.allow_get = self.allow_set | set(('history',))
         self.tics_count = -1 # So we start at zero on the first tic
-        self.charger_threshold = 2000
+        self.charger_threshold = 1000 # this is inverse (when below is on)
         self.sample_size = 10
-        self.save_period_sec = 60
         self.save_time = utime.time() - time_start
         self.memory_threshold = 30000
 
@@ -92,10 +92,11 @@ class HistoryLog:
         current, time = self.history['charger'][-1]
         previous, _ = self.history['charger'][-2]
         event_type = None
-        if current <= self.charger_threshold:
-            if  previous > self.charger_threshold:
+        if current >= self.charger_threshold:
+            if  previous < self.charger_threshold:
+                # now above threshold (on and previous below (off))
                 event_type = 'stop'
-        elif previous <= self.charger_threshold:
+        elif previous >= self.charger_threshold:
             event_type = 'start'
         if event_type:
             log.info('Detected charger voltage change. {{current:{}, prev:{}, time:{}}}', current, previous, time)
@@ -118,7 +119,6 @@ async def loop_tasks(threshold=1):
     assert threshold > 0
     log.garbage_collect()
     seconds = 0
-    historylog.enabled = True
     while True:
         historylog.collect_data(utime.time() - start)
         await uasyncio.sleep(LOOP_TIC_SEC)
@@ -140,3 +140,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
