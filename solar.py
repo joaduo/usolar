@@ -31,7 +31,8 @@ class HistoryLog:
         self.allow_set = set(('enabled', 'max_size', 'period_tics', 'save_period_sec'))
         self.allow_get = self.allow_set | set(('history',))
         self.tics_count = -1 # So we start at zero on the first tic
-        self.charger_threshold = 1000 # this is inverse (when below is on)
+        # Note that voltage is inverse 1.5 when off and 0.5 when on
+        self.charger_threshold = 1000 # when below is on (like 30 and above like 1700 to 1400)
         self.sample_size = 10
         self.save_time = utime.time() - time_start
         self.memory_threshold = 30000
@@ -92,6 +93,7 @@ class HistoryLog:
         current, time = self.history['charger'][-1]
         previous, _ = self.history['charger'][-2]
         event_type = None
+        # Note that voltage is inverse 1.5 when off and 0.5 when on
         if current >= self.charger_threshold:
             if  previous < self.charger_threshold:
                 # now above threshold (on and previous below (off))
