@@ -56,7 +56,6 @@ def main():
     log.LOG_LEVEL = log.DEBUG
     try:
         light.on()
-        solar.resistance.off()
         uasyncio.run(server.run())
         uasyncio.run(solar.loop_tasks())
     finally:
@@ -66,6 +65,6 @@ def main():
 
 
 if __name__ == '__main__':
+    solar.resistance.off()
     main()
-
 

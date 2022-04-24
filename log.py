@@ -35,7 +35,7 @@ def garbage_collect(threshold=MEM_FREE_THRESHOLD):
     if orig_free < threshold:
         gc.collect()
         now_free=gc.mem_free()
-        info('GC: was={orig_free}, now={now_free}',
+        debug('GC: was={orig_free}, now={now_free}',
               orig_free=orig_free, now_free=now_free)
         return now_free
     return orig_free
