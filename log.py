@@ -13,12 +13,16 @@ NOTSET = 0
 
 LOG_LEVEL = INFO
 
+
 def debug(msg, *args, **kwargs):
     if LOG_LEVEL <= DEBUG:
         print_log('DEBUG:{}'.format(msg), *args, **kwargs)
 def error(msg, *args, **kwargs):
     if LOG_LEVEL <= ERROR:
         print_log('ERROR:{}'.format(msg), *args, **kwargs)
+def warning(msg, *args, **kwargs):
+    if LOG_LEVEL <= WARNING:
+        print_log('WARNING:{}'.format(msg), *args, **kwargs)
 def info(msg, *args, **kwargs):
     if LOG_LEVEL <= INFO:
         print_log('INFO:{}'.format(msg), *args, **kwargs)

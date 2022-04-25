@@ -1,7 +1,7 @@
 <html>
 <meta name='viewport' content='width=device-width, initial-scale=1.0'>
 
-<title>uRiego</title>
+<title>uSolar</title>
 
 
 <style>
@@ -62,76 +62,94 @@
     }
 
     createApp({
-      refreshPeriod: 2,
-      status: {voltages: {}},
-      history_cfg: {},
+      refreshPeriod: 1,
+      status: {devices_read: {}},
+      mngrCfg: {},
       history: {},
       refresh: false,
+      resistance: null,
+      logLevel: 10,
       async statusRefresh(){
         this.refresh = ! this.refresh
         this.getStatus(true)
       },
       async getStatus(repeat){
-        this.status['voltages'] = await getAPI('voltages')
+        this.status['devices_read'] = await getAPI('devicesread')
         if(repeat && this.refresh){
           let self = this
           setTimeout(function (){self.getStatus(repeat)}, 1000 * this.refreshPeriod)
         }
       },
       async setHistoryCfg(){
-        this.getHistoryCfg(await postAPI('history', this.history_cfg))
+        this.getHistoryCfg(await postAPI('history', this.mngrCfg))
       },
       async getHistoryCfg(cfg){
         if(!cfg)
-            this.history_cfg = await getAPI('history')
+            this.mngrCfg = await getAPI('history')
         else
-            this.history_cfg = cfg
-        if(this.history_cfg.hasOwnProperty('history'))
-            delete this.history_cfg.history
-      },
-      async toggleHistory(){
-        let cfg = await getAPI('history')
-        this.history = await postAPI('history', {enabled: !cfg.enabled})
+            this.mngrCfg = cfg
+        if(this.mngrCfg.hasOwnProperty('history')){
+            this.history = this.mngrCfg.history
+            delete this.mngrCfg.history
+        }
       },
       async refreshHistory(){
-        this.history = await getAPI('history')
+        this.history = (await getAPI('history')).history
       },
-      async resistOn(){
-        await getAPI('resiston')
+      async setLogLevel(){
+        this.logLevel = await postAPI('loglevel', this.logLevel)
       },
-      async resistOff(){
-        await getAPI('resistoff')
+      async toggleResistance(){
+        this.resistance = (await postAPI('resistance', null)).result
+      },
+      async stopWebserver(){
+        await postAPI("stopwebserver")
+      },
+      async resetServer(){
+        await postAPI("reset")
+      },
+      async getResistance(){
+        this.resistance = await getAPI('resistance')
       },
       async mounted(){
         await this.getHistoryCfg()
+        await this.getResistance()
       },
     }).mount()
   </script>
 
   <div v-scope @vue:mounted="mounted">
-    <h2>Cfg</h2>
-    <p><input type='checkbox' id='max_size' v-model='history_cfg.enabled'/> enabled </p>
-    <p><input type='number' id='max_size' v-model='history_cfg.max_size'/> max size </p>
-    <p><input type='number' id='period_tics' v-model='history_cfg.period_tics'/> period in tics </p>
-    <p><input type='number' id='save_period_sec' v-model='history_cfg.save_period_sec'/> save_period_sec </p>
-    <p><button id='toggleHistory' class='btn btn_status' @click='setHistoryCfg()'>Set Cfg</button> <button id='refreshHistory' class='btn btn_status' @click='getHistoryCfg()'>Get Cfg</button></p>
-    <p><pre>{{history_cfg}}</pre></p>
-    <p/>
-    <hr/>
-    <p><button id='resiston' class='btn btn_status' @click='resistOn()'>Resistance On</button></p>
-    <p><button id='resistoff' class='btn btn_status' @click='resistOff()'>Resistance Off</button></p>
-    <hr/>
-    <p><button id='status' class='btn btn_status' @click='statusRefresh()'>Refresh</button> {{refresh}}
+    <p><button id='status' class='btn' @click='statusRefresh()'>Refresh {{refresh}} </button>
        <input type='number' id='refresh-period' v-model='refreshPeriod'/> period sec</p>
       <p>
         <ul id="runningList">
-          <li v-for="value, name in status.voltages">
+          <li v-for="value, name in status.devices_read">
             {{ name }}: {{ value }}
           </li>
         </ul>
       </p>
     <hr/>
-    <p><button id='refreshHistory' class='btn btn_status' @click='refreshHistory()'>View History</button></p>
+    <h2>Cfg</h2>
+    <p><input type='checkbox' id='max_size' v-model='mngrCfg.enabled'/> enabled </p>
+    <p><input type='number' id='max_size' v-model='mngrCfg.history_size'/> history size </p>
+    <p><input type='number' id='period_tics' v-model='mngrCfg.period_tics'/> period in tics </p>
+    <p><input type='number' id='inverter_tracker__detections_size' v-model='mngrCfg.inverter_tracker__detections_size'/> detections size </p>
+    <p><button id='setHistoryCfg' class='btn btn_stop' @click='setHistoryCfg()'>Set Cfg</button>
+    <button id='getHistoryCfg' class='btn' @click='getHistoryCfg()'>Get Cfg</button></p>
+    <p><pre>{{mngrCfg}}</pre></p>
+    <p/>
+    <hr/>
+    <h2>Log Level</h2>
+    <p><input type='number' id='inverter_tracker__detections_size' v-model='logLevel'/> log level </p>
+    <p><button id='setLogLevel' class='btn btn_stop' @click='setLogLevel()'>Set</button></p>
+    <p/>
+    <hr/>
+    <p><button id='resiston' class='btn btn_stop' @click='toggleResistance()'>Toggle resistance</button></p>
+    <hr/>
+    <p><button id='stopwebserver' class='btn btn_stop' @click='stopWebserver()'>Stop webserver</button></p>
+    <p><button id='resetServer' class='btn btn_stop' @click='resetServer()'>Reset webserver</button></p>
+    <hr/>
+    <p><button id='refreshHistory' class='btn' @click='refreshHistory()'>View History</button></p>
     <p><pre>{{history}}</pre></p>
     <p/>
   </div>

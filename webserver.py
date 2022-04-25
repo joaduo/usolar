@@ -35,6 +35,9 @@ class UnauthorizedError(Exception):
     pass
 
 
+class StopWebServer(Exception):
+    pass
+
 def extract_json(request):
     log.garbage_collect()
     msg = ujson.loads(request[request.rfind(b'\r\n\r\n')+4:])
@@ -69,6 +72,7 @@ class Server:
         conn_id = self.conn_id
         log.info('Accepting conn_id={conn_id}', conn_id=conn_id)
         log.garbage_collect()
+        stop_server = False
         try:
             request = await uasyncio.wait_for(sreader.readline(), self.timeout)
             request_trailer = await uasyncio.wait_for(sreader.read(-1), self.timeout)
@@ -89,6 +93,8 @@ class Server:
                 for l in resp_generator:
                     swriter.write(l)
                     await swriter.drain()
+        except StopWebServer:
+            raise
         except Exception as e:
             msg = 'Exception e={e} e={e!r} conn_id={conn_id}'.format(e=e, conn_id=conn_id)
             log.debug(msg)
