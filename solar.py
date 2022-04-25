@@ -57,26 +57,27 @@ class ResistanceTracker(TrackerBase):
     def reset(self):
         self.status_reason = ''
         self.switch_time = 0
+        self.resistance.off()
 
     def run_tic(self, time):
         if not self.is_on():
+            delta = time - self.switch_time
             if self.inverter_tracker.is_oscillating(time, self.switch_time):
-                delta = time - self.switch_time
                 if not self.switch_time or delta > self.HOLD_DISABLED:
                     log.info('Turning resistance on due to oscillations')
-                    self.resistance.on()
-                    self.status_reason = self.OSCILLATING
-                    self.switch_time = time
+                    self.set_switch(True, time, self.OSCILLATING)
                 else:
                     log.error('Oscillating even with resistance ON {} secs ago (HOLD_DISABLED={} secs)',
                               delta, self.HOLD_DISABLED)
             elif not self.inverter_tracker.is_on():
                 voltage = self.panels_tracker.get_voltage()
                 if PV_10V < voltage < PV_12V:
-                    log.info('Turning resistance to prevent oscillations')
-                    self.resistance.on()
-                    self.status_reason = self.SUNRISE_PREVENT
-                    self.switch_time = time
+                    if not self.switch_time or delta > self.HOLD_DISABLED:
+                        log.info('Turning resistance to prevent oscillations')
+                        self.set_switch(True, time, self.SUNRISE_PREVENT)
+                    else:
+                        log.error('Weird voltage even with resistance ON {} secs ago (HOLD_DISABLED={} secs)',
+                              delta, self.HOLD_DISABLED)
         else:
             voltage = self.panels_tracker.get_voltage()
             if voltage > PV_12V:
@@ -88,14 +89,18 @@ class ResistanceTracker(TrackerBase):
                     log.warning('Release with high voltage, nevertheless inverter still oscillating')
                     reason = self.HIGHVOLTAGE_OSC
                 log.info('Releasing resistance, there is enough power. reason={}', reason)
-                self.resistance.off()
-                self.status_reason = reason
-                self.switch_time = time
+                self.set_switch(False, time, reason)
             elif voltage < PV_10V and time - self.switch_time > self.HOLD_ENABLED:
                 log.info('Releasing resistance, seems its night')
-                self.resistance.off()
-                self.status_reason = self.SUNSET
-                self.switch_time = time
+                self.set_switch(False, time, self.SUNSET)
+
+    def set_switch(self, status, time, reason):
+        if status:
+            self.resistance.on()
+        else:
+            self.resistance.off()
+        self.status_reason = reason
+        self.switch_time = time
 
     def is_on(self):
         return self.resistance.value()
@@ -230,7 +235,11 @@ class SolarManager:
         self.period_tics = 1
         self.allow_set = set(('enabled', 'history_size', 'period_tics',
                               'inverter_tracker__detections_size'))
-        self.allow_get = self.allow_set | set(('history',))
+        self.allow_get = self.allow_set | set(('history',
+                                               'resistance_tracker__status_reason',
+                                               'resistance_tracker__is_on',
+                                               'inverter_tracker__is_on',
+                                               ))
         self.tics_count = -1 # So we start at zero on the first tic
         self.charger_threshold = INVERTER_USB_THRESHOLD
         self.sample_size = 10
@@ -333,7 +342,10 @@ class SolarManager:
             attrs = name.split('__')
             for n in attrs[:-1]:
                 obj = getattr(obj, n)
-            json_dict[name] = getattr(obj, attrs[-1])
+            value = getattr(obj, attrs[-1])
+            if callable(value):
+                value = value()
+            json_dict[name] = value
         return json_dict
 
     def get_resistance(self):
