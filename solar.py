@@ -275,8 +275,7 @@ class SolarManager:
         self.inverter_tracker = inverter_tracker
         self.resistance_tracker = resistance_tracker
 
-    async def loop_tasks(self, threshold=1):
-        assert threshold > 0
+    async def loop_tasks(self):
         log.garbage_collect()
         seconds = 0
         runners = [self] + self.trackers
