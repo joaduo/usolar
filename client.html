@@ -68,7 +68,9 @@
       history: {},
       refresh: false,
       resistance: null,
-      logLevel: 10,
+      logLevel: 20,
+      logHistoryCfg: {level:20, size:20},
+      logHistory: [],
       async statusRefresh(){
         this.refresh = ! this.refresh
         this.getStatus(true)
@@ -99,8 +101,16 @@
       async setLogLevel(){
         this.logLevel = await postAPI('loglevel', this.logLevel)
       },
-      async toggleResistance(){
-        this.resistance = (await postAPI('resistance', null)).result
+      async getLogHistory(){
+        this.logHistory = await getAPI('log')
+      },
+      async setLogHistoryCfg(){
+        this.getLogHistoryCfg(await postAPI('loghistorycfg', this.logHistoryCfg))
+      },
+      async getLogHistoryCfg(cfg){
+        if(!cfg)
+            cfg = await getAPI('loghistorycfg')
+        this.logHistoryCfg = cfg
       },
       async stopWebserver(){
         await postAPI("stopwebserver")
@@ -110,6 +120,9 @@
       },
       async getResistance(){
         this.resistance = await getAPI('resistance')
+      },
+      async toggleResistance(){
+        this.resistance = (await postAPI('resistance', null)).result
       },
       async mounted(){
         await this.getHistoryCfg()
@@ -134,20 +147,31 @@
     <p><input type='number' id='max_size' v-model='mngrCfg.history_size'/> history size </p>
     <p><input type='number' id='period_tics' v-model='mngrCfg.period_tics'/> period in tics </p>
     <p><input type='number' id='inverter_tracker__detections_size' v-model='mngrCfg.inverter_tracker__detections_size'/> detections size </p>
-    <p><button id='setHistoryCfg' class='btn btn_stop' @click='setHistoryCfg()'>Set Cfg</button>
-    <button id='getHistoryCfg' class='btn' @click='getHistoryCfg()'>Get Cfg</button></p>
+    <p><button id='setHistoryCfg' class='btn btn_stop' @click='setHistoryCfg()'>Set</button>
+    <button id='getHistoryCfg' class='btn' @click='getHistoryCfg()'>Get</button></p>
     <p><pre>{{mngrCfg}}</pre></p>
-    <p/>
-    <hr/>
-    <h2>Log Level</h2>
-    <p><input type='number' id='inverter_tracker__detections_size' v-model='logLevel'/> log level </p>
-    <p><button id='setLogLevel' class='btn btn_stop' @click='setLogLevel()'>Set</button></p>
     <p/>
     <hr/>
     <p><button id='resiston' class='btn btn_stop' @click='toggleResistance()'>Toggle resistance</button></p>
     <hr/>
     <p><button id='stopwebserver' class='btn btn_stop' @click='stopWebserver()'>Stop webserver</button></p>
     <p><button id='resetServer' class='btn btn_stop' @click='resetServer()'>Reset webserver</button></p>
+    <hr/>
+    <h2>Console Log Level</h2>
+    <p><input type='number' id='log_level' v-model='logLevel'/> console log level </p>
+    <p><button id='setLogLevel' class='btn btn_stop' @click='setLogLevel()'>Set</button></p>
+    <p/>
+    <hr/>
+    <h2>Log History Level</h2>
+    <p><input type='number' id='log_hist_level' v-model='logHistoryCfg.level'/> log level </p>
+    <p><input type='number' id='log_hist_level' v-model='logHistoryCfg.size'/> log size </p>
+    <p><button id='setLogHistoryCfg' class='btn btn_stop' @click='setLogHistoryCfg()'>Set</button></p>
+    <p><button id='getLogHistoryCfg' class='btn' @click='getLogHistoryCfg()'>Get</button></p>
+    <p/>
+    <hr/>
+    <p><button id='logHistory' class='btn' @click='getLogHistory()'>Log History</button></p>
+    <p><pre>{{logHistory}}</pre></p>
+    <p/>
     <hr/>
     <p><button id='refreshHistory' class='btn' @click='refreshHistory()'>View History</button></p>
     <p><pre>{{history}}</pre></p>

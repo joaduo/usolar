@@ -46,6 +46,7 @@ class ResistanceTracker(TrackerBase):
     SUNSET = 'sunset'
     HIGHVOLTAGE = 'highvoltage'
     HIGHVOLTAGE_OSC = 'highvoltage_oscillating'
+    MANUAL = 'manual'
 
     def __init__(self, manager, panels_tracker, inverter_tracker):
         self.manager = manager
@@ -64,7 +65,7 @@ class ResistanceTracker(TrackerBase):
             delta = time - self.switch_time
             if self.inverter_tracker.is_oscillating(time, self.switch_time):
                 if not self.switch_time or delta > self.HOLD_DISABLED:
-                    log.info('Turning resistance on due to oscillations')
+                    log.important('Turning resistance on due to oscillations')
                     self.set_switch(True, time, self.OSCILLATING)
                 else:
                     log.error('Oscillating even with resistance ON {} secs ago (HOLD_DISABLED={} secs)',
@@ -73,7 +74,7 @@ class ResistanceTracker(TrackerBase):
                 voltage = self.panels_tracker.get_voltage()
                 if PV_10V < voltage < PV_12V:
                     if not self.switch_time or delta > self.HOLD_DISABLED:
-                        log.info('Turning resistance to prevent oscillations')
+                        log.important('Turning resistance to prevent oscillations')
                         self.set_switch(True, time, self.SUNRISE_PREVENT)
                     else:
                         log.error('Weird voltage even with resistance ON {} secs ago (HOLD_DISABLED={} secs)',
@@ -88,10 +89,10 @@ class ResistanceTracker(TrackerBase):
                 if self.inverter_tracker.is_oscillating(time, self.switch_time):
                     log.warning('Release with high voltage, nevertheless inverter still oscillating')
                     reason = self.HIGHVOLTAGE_OSC
-                log.info('Releasing resistance, there is enough power. reason={}', reason)
+                log.important('Releasing resistance, there is enough power. reason={}', reason)
                 self.set_switch(False, time, reason)
             elif voltage < PV_10V and time - self.switch_time > self.HOLD_ENABLED:
-                log.info('Releasing resistance, seems its night')
+                log.important('Releasing resistance, seems its night')
                 self.set_switch(False, time, self.SUNSET)
 
     def set_switch(self, status, time, reason):
@@ -172,7 +173,7 @@ class InverterTracker(TrackerBase):
         elif previous >= INVERTER_USB_THRESHOLD:
             event_type = self.START_TYPE
         if event_type:
-            log.info('inverter_usb voltage change.'
+            log.important('inverter_usb voltage change.'
                      ' current={}, prev={}, time={}, event_type={}',
                      current, previous, time, event_type)
             self.detections.append(dict(inverter_usb=usb_hist[-self.sample_size:],
@@ -301,7 +302,7 @@ class SolarManager:
         log.debug('Collecting devices...')
         for name, dev in self.devices.items():
             row = (self._device_value(dev), time)
-            log.info('{}:{}',name,row)
+            log.debug('{}:{}',name,row)
             self.history[name].append(row)
             self.purge_old(name, self.history_size)
 
@@ -351,11 +352,11 @@ class SolarManager:
         return bool(self.devices['resistance'].value())
 
     def set_resistance(self, value):
-        if value:
-            self.devices['resistance'].on()
-        else:
-            self.devices['resistance'].off()
-        return self.get_resistance()
+        log.important('Setting resistance to {}', value)
+        self.resistance_tracker.set_switch(bool(value),
+                                           utime.time() - self.start_time,
+                                           self.resistance_tracker.MANUAL)
+        return self.resistance_tracker.resistance.value()
 
     def purge_old(self, name, history_size):
         hist_lst = self.history[name]

@@ -19,7 +19,7 @@ async def blink():
 
 
 async def serve_request(verb, path, request_trailer):
-    log.info(path)
+    log.debug(path)
     uasyncio.create_task(blink())
     content_type = 'application/json'
     status = 200
@@ -30,11 +30,6 @@ async def serve_request(verb, path, request_trailer):
             cfg = webserver.extract_json(request_trailer)
             solar_manager.set_json(cfg)
         payload = ujson.dumps(solar_manager.get_json())
-    elif path == b'/loglevel':
-        if verb == webserver.POST:
-            level = webserver.extract_json(request_trailer)
-            log.LOG_LEVEL = level
-        payload = log.LOG_LEVEL
     elif path == b'/resistance':
         value = solar_manager.get_resistance()
         if verb == webserver.POST:
@@ -44,11 +39,28 @@ async def serve_request(verb, path, request_trailer):
         if verb == webserver.POST:
             solar_manager.stop = True
             raise webserver.StopWebServer()
-        payload = ''
+        payload = ujson.dumps('')
     elif path == b'/reset':
         if verb == webserver.POST:
             solar_manager.reset()
-        payload = ''
+            log.log_history.clear()
+            log.important('Resetting server status...')
+        payload = ujson.dumps('')
+    elif path == b'/loglevel':
+        if verb == webserver.POST:
+            level = webserver.extract_json(request_trailer)
+            log.LOG_LEVEL = level
+        payload = ujson.dumps(log.LOG_LEVEL)
+    elif path == b'/loghistorycfg':
+        if verb == webserver.POST:
+            cfg = webserver.extract_json(request_trailer)
+            log.LOG_HISTORY_LEVEL = cfg.get('level', log.LOG_HISTORY_LEVEL)
+            log.LOG_HISTORY_SIZE = cfg.get('size', log.LOG_HISTORY_SIZE)
+        payload = ujson.dumps(dict(level=log.LOG_HISTORY_LEVEL, size=log.LOG_HISTORY_SIZE))
+    elif path == b'/log':
+        if verb == webserver.POST:
+            log.log_history.clear()
+        payload = ujson.dumps(log.log_history)
     else:
         content_type = 'text/html'
         if path == b'/':
@@ -68,7 +80,7 @@ def main():
     server = webserver.Server(serve_request)
     server.static_path = b'/static/'
     log.garbage_collect()
-    log.LOG_LEVEL = log.DEBUG
+    log.LOG_LEVEL = log.INFO
     try:
         light.on()
         uasyncio.run(server.run())

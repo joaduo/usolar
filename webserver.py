@@ -64,13 +64,13 @@ class Server:
         self.backlog = backlog
         self.timeout = timeout
     async def run(self):
-        log.info('Opening address={host} port={port}.', host=self.host, port=self.port)
+        log.debug('Opening address={host} port={port}.', host=self.host, port=self.port)
         self.conn_id = 0 #connections ids
         self.server = await uasyncio.start_server(self.accept_conn, self.host, self.port, self.backlog)
     async def accept_conn(self, sreader, swriter):
         self.conn_id += 1
         conn_id = self.conn_id
-        log.info('Accepting conn_id={conn_id}', conn_id=conn_id)
+        log.debug('Accepting conn_id={conn_id}', conn_id=conn_id)
         log.garbage_collect()
         stop_server = False
         try:
