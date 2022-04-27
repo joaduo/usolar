@@ -64,12 +64,12 @@
     createApp({
       refreshPeriod: 1,
       status: {devices_read: {}},
-      mngrCfg: {},
+      manager: {},
       history: {},
       refresh: false,
       resistance: null,
       logLevel: 20,
-      logHistoryCfg: {level:20, size:20},
+      logCfg: {},
       logHistory: [],
       async statusRefresh(){
         this.refresh = ! this.refresh
@@ -82,17 +82,17 @@
           setTimeout(function (){self.getStatus(repeat)}, 1000 * this.refreshPeriod)
         }
       },
-      async setHistoryCfg(){
-        this.getHistoryCfg(await postAPI('history', this.mngrCfg))
+      async setManager(){
+        this.getManager(await postAPI('history', this.manager))
       },
-      async getHistoryCfg(cfg){
+      async getManager(cfg){
         if(!cfg)
-            this.mngrCfg = await getAPI('history')
+            this.manager = await getAPI('history')
         else
-            this.mngrCfg = cfg
-        if(this.mngrCfg.hasOwnProperty('history')){
-            this.history = this.mngrCfg.history
-            delete this.mngrCfg.history
+            this.manager = cfg
+        if(this.manager.hasOwnProperty('history')){
+            this.history = this.manager.history
+            delete this.manager.history
         }
       },
       async refreshHistory(){
@@ -104,13 +104,13 @@
       async getLogHistory(){
         this.logHistory = await getAPI('log')
       },
-      async setLogHistoryCfg(){
-        this.getLogHistoryCfg(await postAPI('loghistorycfg', this.logHistoryCfg))
+      async setLogCfg(){
+        this.getLogCfg(await postAPI('logcfg', this.logCfg))
       },
-      async getLogHistoryCfg(cfg){
+      async getLogCfg(cfg){
         if(!cfg)
-            cfg = await getAPI('loghistorycfg')
-        this.logHistoryCfg = cfg
+            cfg = await getAPI('logcfg')
+        this.logCfg = cfg
       },
       async stopWebserver(){
         await postAPI("stopwebserver")
@@ -119,14 +119,15 @@
         await postAPI("reset")
       },
       async getResistance(){
-        this.resistance = await getAPI('resistance')
+        this.resistance = (await getAPI('resistance')).value
       },
       async toggleResistance(){
-        this.resistance = (await postAPI('resistance', null)).result
+        this.resistance = (await postAPI('resistance', null)).value
       },
       async mounted(){
-        await this.getHistoryCfg()
+        await this.getManager()
         await this.getResistance()
+        await this.getLogCfg()
       },
     }).mount()
   </script>
@@ -142,38 +143,34 @@
         </ul>
       </p>
     <hr/>
-    <h2>Cfg</h2>
-    <p><input type='checkbox' id='max_size' v-model='mngrCfg.enabled'/> enabled </p>
-    <p><input type='number' id='max_size' v-model='mngrCfg.history_size'/> history size </p>
-    <p><input type='number' id='period_tics' v-model='mngrCfg.period_tics'/> period in tics </p>
-    <p><input type='number' id='inverter_tracker__detections_size' v-model='mngrCfg.inverter_tracker__detections_size'/> detections size </p>
-    <p><button id='setHistoryCfg' class='btn btn_stop' @click='setHistoryCfg()'>Set</button>
-    <button id='getHistoryCfg' class='btn' @click='getHistoryCfg()'>Get</button></p>
-    <p><pre>{{mngrCfg}}</pre></p>
+    <h2>Manager</h2>
+    <p><input type='checkbox' id='max_size' v-model='manager.enabled'/> enabled </p>
+    <p><input type='number' id='max_size' v-model='manager.history_size'/> history size </p>
+    <p><input type='number' id='period_tics' v-model='manager.period_tics'/> period in tics </p>
+    <p><input type='number' id='inverter_tracker__detections_size' v-model='manager.inverter_tracker__detections_size'/> detections size </p>
+    <p><button id='setManager' class='btn btn_stop' @click='setManager()'>Set</button>
+    <button id='getManager' class='btn' @click='getManager()'>Get</button></p>
+    <p><pre>{{manager}}</pre></p>
     <p/>
     <hr/>
-    <p><button id='resiston' class='btn btn_stop' @click='toggleResistance()'>Toggle resistance</button></p>
+    <p><button id='resiston' class='btn btn_stop' @click='toggleResistance()'>Toggle resistance</button> {{resistance}}</p>
     <hr/>
     <p><button id='stopwebserver' class='btn btn_stop' @click='stopWebserver()'>Stop webserver</button></p>
     <p><button id='resetServer' class='btn btn_stop' @click='resetServer()'>Reset webserver</button></p>
     <hr/>
-    <h2>Console Log Level</h2>
-    <p><input type='number' id='log_level' v-model='logLevel'/> console log level </p>
-    <p><button id='setLogLevel' class='btn btn_stop' @click='setLogLevel()'>Set</button></p>
+    <h2>Log Cfg</h2>
+    <p><input type='number' id='log_level' v-model='logCfg.log_level'/> console log level </p>
+    <p><input type='number' id='web_log_level' v-model='logCfg.web_log_level'/> web log level </p>
+    <p><input type='number' id='web_log_size' v-model='logCfg.web_log_size'/> log size </p>
+    <p><button id='setLogCfg' class='btn btn_stop' @click='setLogCfg()'>Set</button></p>
+    <p><button id='getLogCfg' class='btn' @click='getLogCfg()'>Get</button></p>
     <p/>
     <hr/>
-    <h2>Log History Level</h2>
-    <p><input type='number' id='log_hist_level' v-model='logHistoryCfg.level'/> log level </p>
-    <p><input type='number' id='log_hist_level' v-model='logHistoryCfg.size'/> log size </p>
-    <p><button id='setLogHistoryCfg' class='btn btn_stop' @click='setLogHistoryCfg()'>Set</button></p>
-    <p><button id='getLogHistoryCfg' class='btn' @click='getLogHistoryCfg()'>Get</button></p>
-    <p/>
-    <hr/>
-    <p><button id='logHistory' class='btn' @click='getLogHistory()'>Log History</button></p>
+    <p><button id='logHistory' class='btn' @click='getLogHistory()'> Web Log</button></p>
     <p><pre>{{logHistory}}</pre></p>
     <p/>
     <hr/>
-    <p><button id='refreshHistory' class='btn' @click='refreshHistory()'>View History</button></p>
+    <p><button id='refreshHistory' class='btn' @click='refreshHistory()'>Tracking History</button></p>
     <p><pre>{{history}}</pre></p>
     <p/>
   </div>

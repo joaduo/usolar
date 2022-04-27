@@ -43,24 +43,24 @@ async def serve_request(verb, path, request_trailer):
     elif path == b'/reset':
         if verb == webserver.POST:
             solar_manager.reset()
-            log.log_history.clear()
+            log.web_log_history.clear()
+            log.web_log_frequency.clear()
             log.important('Resetting server status...')
         payload = ujson.dumps('')
-    elif path == b'/loglevel':
-        if verb == webserver.POST:
-            level = webserver.extract_json(request_trailer)
-            log.LOG_LEVEL = level
-        payload = ujson.dumps(log.LOG_LEVEL)
-    elif path == b'/loghistorycfg':
+    elif path == b'/logcfg':
         if verb == webserver.POST:
             cfg = webserver.extract_json(request_trailer)
-            log.LOG_HISTORY_LEVEL = cfg.get('level', log.LOG_HISTORY_LEVEL)
-            log.LOG_HISTORY_SIZE = cfg.get('size', log.LOG_HISTORY_SIZE)
-        payload = ujson.dumps(dict(level=log.LOG_HISTORY_LEVEL, size=log.LOG_HISTORY_SIZE))
+            log.LOG_LEVEL = cfg.get('log_level', log.LOG_LEVEL)
+            log.WEB_LOG_LEVEL = cfg.get('web_log_level', log.WEB_LOG_LEVEL)
+            log.WEB_LOG_SIZE = cfg.get('web_log_size', log.WEB_LOG_SIZE)
+        payload = ujson.dumps(dict(log_level=log.LOG_LEVEL,
+                                   web_log_level=log.WEB_LOG_LEVEL,
+                                   web_log_size=log.WEB_LOG_SIZE))
     elif path == b'/log':
         if verb == webserver.POST:
-            log.log_history.clear()
-        payload = ujson.dumps(log.log_history)
+            log.web_log_history.clear()
+            log.web_log_frequency.clear()
+        payload = ujson.dumps(dict(log=log.web_log_history, frequency=log.web_log_frequency))
     else:
         content_type = 'text/html'
         if path == b'/':
