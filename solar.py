@@ -424,7 +424,8 @@ class WifiTracker(TrackerBase):
     async def blink(self):
         self.light.off()
         await uasyncio.sleep(0.2)
-        self.light.on()
+        if not self.schedule_toggle:
+            self.light.on()
 
 
 def main():
