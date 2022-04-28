@@ -4,7 +4,7 @@ import utime
 import machine
 import devices
 import ujson
-
+import network
 
 LOOP_TIC_SEC = 1
 GC_PERIOD = 10
@@ -12,7 +12,8 @@ PANELS_PIN = 39
 INVERTER_USB_PIN = 36
 AC_ENABLED_PIN = 12
 RESISTANCE_PIN = 22 #10W 56 Ohm resistence (connected to the panels output)
-
+FLASH_BUTTON_PIN = 0
+LIGHT_PIN = 2
 
 # PV input is connected to a optocoupler.
 # We have gradient between 10 and 16V (below 0, above saturated)
@@ -78,7 +79,7 @@ class ResistanceTracker(TrackerBase):
                         self.set_switch(True, time, self.SUNRISE_PREVENT)
                     else:
                         log.error('Weird voltage even with resistance ON {} secs ago (HOLD_DISABLED={} secs)',
-                              delta, self.HOLD_DISABLED)
+                                  delta, self.HOLD_DISABLED)
         else:
             voltage = self.panels_tracker.get_voltage()
             if voltage > PV_12V:
@@ -226,8 +227,9 @@ class InverterTracker(TrackerBase):
 class SolarManager:
     start_time = utime.time()
 
-    def __init__(self):
+    def __init__(self, wifi_tracker):
         self.init_devices()
+        self.wifi_tracker = wifi_tracker
         self.init_trackers()
         self.history = {n:[] for n in self.devices}
         self.detections = {}
@@ -272,18 +274,21 @@ class SolarManager:
         inverter_tracker = InverterTracker(self)
         panels_tracker = PanelsTracker(self)
         resistance_tracker = ResistanceTracker(self, panels_tracker, inverter_tracker)
-        self.trackers = [inverter_tracker, panels_tracker, resistance_tracker]
+        self.trackers = (inverter_tracker, panels_tracker, resistance_tracker)
         self.inverter_tracker = inverter_tracker
         self.resistance_tracker = resistance_tracker
 
     async def loop_tasks(self):
         log.garbage_collect()
         seconds = 0
-        runners = [self] + self.trackers
+        #runners = [self] + self.trackers
+        fixed = (self, self.wifi_tracker)
         while not self.stop:
+            time = utime.time() - self.start_time
+            for r in fixed:
+                r.run_tic(time)
             if self.enabled:
-                time = utime.time() - self.start_time
-                for r in runners:
+                for r in self.trackers:
                     r.run_tic(time)
             else:
                 log.debug('SolarManager disabled')
@@ -371,6 +376,49 @@ class SolarManager:
         for n, dev in self.devices.items():
             reads[n] = self.history[n][-1][0] if self.history[n] and self.enabled else self._device_value(dev)
         return reads
+
+
+class WifiTracker(TrackerBase):
+    def __init__(self, essid, password):
+        self.light = machine.Pin(LIGHT_PIN, machine.Pin.OUT)
+        self.flash_button = devices.InvertedPin(FLASH_BUTTON_PIN, machine.Pin.IN)
+        ap = network.WLAN(network.AP_IF)
+        log.info(ap.ifconfig())
+        ap.config(essid=essid, authmode=network.AUTH_WPA_WPA2_PSK, password=password, channel=4)
+        network.phy_mode(network.MODE_11B)
+        self.ap = ap
+        self.status = False
+        self.last_switch = 0
+
+    def run_tic(self, time):
+        delta = time - self.last_switch
+        # You have a 5 sec window to switch pressing (then it toggles back)
+        if self.flash_button.value() and delta > 5:
+            self.toggle()
+            self.last_switch = time
+
+    def toggle(self):
+        if not self.status:
+            self.on()
+        else:
+            self.off()
+
+    def on(self):
+        log.info('Turning wifi ON')
+        self.light.on()
+        self.ap.active(True)
+        self.status = True
+
+    def off(self):
+        log.info('Turning wifi OFF')
+        self.light.off()
+        self.ap.active(False)
+        self.status = False
+
+    async def blink(self):
+        self.light.off()
+        await uasyncio.sleep(0.2)
+        self.light.on()
 
 
 def main():

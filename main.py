@@ -5,22 +5,12 @@ import utime
 import log
 import webserver
 import solar
-
-
-LIGHT_PIN = 2
-light = machine.Pin(LIGHT_PIN, machine.Pin.OUT)
-solar_manager = None
-
-
-async def blink():
-    light.off()
-    await uasyncio.sleep(0.2)
-    light.on()
+import config
 
 
 async def serve_request(verb, path, request_trailer):
     log.debug(path)
-    uasyncio.create_task(blink())
+    uasyncio.create_task(wifi_tracker.blink())
     content_type = 'application/json'
     status = 200
     if path == b'/devicesread':
@@ -61,6 +51,12 @@ async def serve_request(verb, path, request_trailer):
             log.web_log_history.clear()
             log.web_log_frequency.clear()
         payload = ujson.dumps(dict(log=log.web_log_history, frequency=log.web_log_frequency))
+    elif path == b'/wifioff':
+        v = False
+        if verb == webserver.POST:
+            wifi_tracker.off()
+            v = True
+        payload = ujson.dumps(dict(wifioff=v))
     else:
         content_type = 'text/html'
         if path == b'/':
@@ -72,9 +68,12 @@ async def serve_request(verb, path, request_trailer):
     return webserver.response(status, content_type, payload)
 
 
+solar_manager = None
+wifi_tracker = None
 def main():
-    global solar_manager
-    solar_manager = solar.SolarManager()
+    global solar_manager, wifi_tracker
+    wifi_tracker = solar.WifiTracker(config.AP_WIFI_ESSID, config.AP_WIFI_PASSWORD)
+    solar_manager = solar.SolarManager(wifi_tracker)
     gmt, localt = utime.gmtime(), utime.localtime()
     assert gmt == localt
     server = webserver.Server(serve_request)
@@ -82,7 +81,7 @@ def main():
     log.garbage_collect()
     log.LOG_LEVEL = log.INFO
     try:
-        light.on()
+        wifi_tracker.on()
         uasyncio.run(server.run())
         uasyncio.run(solar_manager.loop_tasks())
     finally:
