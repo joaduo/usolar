@@ -387,18 +387,24 @@ class WifiTracker(TrackerBase):
         ap.config(essid=essid, authmode=network.AUTH_WPA_WPA2_PSK, password=password, channel=4)
         network.phy_mode(network.MODE_11B)
         self.ap = ap
-        self.status = False
+        self.wifi_active = False
         self.last_switch = 0
+        self.schedule_toggle = False
 
     def run_tic(self, time):
         delta = time - self.last_switch
         # You have a 5 sec window to switch pressing (then it toggles back)
-        if self.flash_button.value() and delta > 5:
+        if self.schedule_toggle:
+            log.info('Waiting for network connection to close...')
+            utime.sleep(1)
+            self.toggle()
+            self.schedule_toggle = False
+        elif self.flash_button.value() and delta > 5:
             self.toggle()
             self.last_switch = time
 
     def toggle(self):
-        if not self.status:
+        if not self.wifi_active:
             self.on()
         else:
             self.off()
@@ -407,13 +413,13 @@ class WifiTracker(TrackerBase):
         log.info('Turning wifi ON')
         self.light.on()
         self.ap.active(True)
-        self.status = True
+        self.wifi_active = True
 
     def off(self):
         log.info('Turning wifi OFF')
         self.light.off()
         self.ap.active(False)
-        self.status = False
+        self.wifi_active = False
 
     async def blink(self):
         self.light.off()

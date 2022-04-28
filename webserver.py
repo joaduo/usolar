@@ -46,17 +46,27 @@ def extract_json(request):
     return msg['payload']
 
 
-CHUNK_SIZE = 1024
-def serve_file(path):
+CHUNK_SIZE = 6000
+def serve_file(path, replacements=None):
+    """
+    :param path:
+    :param replacements: BEWARE, this is tricky because it won't accept cross chunks replacements
+    """
     with open(path) as fp:
         chunk = fp.read(CHUNK_SIZE)
         while chunk:
+            if replacements:
+                for k,v in replacements.items():
+                    chunk = chunk.replace(k,v)
             yield chunk
             log.garbage_collect()
             chunk = fp.read(CHUNK_SIZE)
 
 class Server:
     static_path = None # b'/static/'
+    # BEWARE, this is tricky because it won't accept cross chunks replacements
+    # The easiest way is to make the file smaller than 1 chunk
+    templates_variables = {}
     def __init__(self, serve_request, host='0.0.0.0', port=80, backlog=5, timeout=CONN_TIMEOUT):
         self.serve_request = serve_request
         self.host = host
@@ -72,7 +82,6 @@ class Server:
         conn_id = self.conn_id
         log.debug('Accepting conn_id={conn_id}', conn_id=conn_id)
         log.garbage_collect()
-        stop_server = False
         try:
             request = await uasyncio.wait_for(sreader.readline(), self.timeout)
             request_trailer = await uasyncio.wait_for(sreader.read(-1), self.timeout)
@@ -117,7 +126,7 @@ class Server:
             if path.endswith(b'.js'):
                 content_type = 'application/javascript'
             resp = response(200, content_type, '')
-            return resp, serve_file(path)
+            return resp, serve_file(path, self.templates_variables)
         return response(404, 'text/html', web_page('404 Not Found'))
     def file_exists(self, path):
         try:

@@ -54,14 +54,14 @@ async def serve_request(verb, path, request_trailer):
     elif path == b'/wifioff':
         v = False
         if verb == webserver.POST:
-            wifi_tracker.off()
+            wifi_tracker.schedule_toggle = True
             v = True
         payload = ujson.dumps(dict(wifioff=v))
     else:
         content_type = 'text/html'
         if path == b'/':
             resp = webserver.response(status, content_type, '')
-            return resp, webserver.serve_file('/client.html')
+            return resp, webserver.serve_file('/client.html', {'@=SERVER_ADDRESS=@':''})
         else:
             status = 404
             payload = webserver.web_page('404 Not found')
@@ -87,6 +87,7 @@ def main():
     finally:
         uasyncio.run(server.close())
         _ = uasyncio.new_event_loop()
+    wifi_tracker.off()
 
 
 

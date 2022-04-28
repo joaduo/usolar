@@ -25,7 +25,7 @@
 
   <script type="module">
     import { createApp } from '/static/petite-vue-module.min.js'
-    var host = ''
+    var host = '@=SERVER_ADDRESS=@'
 
     async function getAPI(endpoint){
         let url = host + '/' + endpoint;
@@ -112,6 +112,9 @@
             cfg = await getAPI('logcfg')
         this.logCfg = cfg
       },
+      async wifiOff(){
+        await postAPI("wifioff")
+      },
       async stopWebserver(){
         await postAPI("stopwebserver")
       },
@@ -157,6 +160,7 @@
     <hr/>
     <p><button id='stopwebserver' class='btn btn_stop' @click='stopWebserver()'>Stop webserver</button></p>
     <p><button id='resetServer' class='btn btn_stop' @click='resetServer()'>Reset webserver</button></p>
+    <p><button id='wifiOff' class='btn btn_stop' @click='wifiOff()'>Wifi Off</button></p>
     <hr/>
     <h2>Log Cfg</h2>
     <p><pre>CRITICAL=50 ERROR=40 WARNING=30 IMPORTANT=25 INFO=20 DEBUG=10</pre></p>
