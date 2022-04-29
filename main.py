@@ -25,11 +25,6 @@ async def serve_request(verb, path, request_trailer):
         if verb == webserver.POST:
             value = solar_manager.set_resistance(not value)
         payload = ujson.dumps(dict(value=value))
-    elif path == b'/stopwebserver':
-        if verb == webserver.POST:
-            solar_manager.stop = True
-            raise webserver.StopWebServer()
-        payload = ujson.dumps('')
     elif path == b'/reset':
         if verb == webserver.POST:
             solar_manager.reset()

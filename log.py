@@ -19,34 +19,36 @@ LOG_LEVEL = INFO
 WEB_LOG_SIZE = 20
 WEB_LOG_LEVEL = IMPORTANT
 
+
 def debug(msg, *args, **kwargs):
-    print_log(DEBUG, 'DEBUG:{}'.format(msg), *args, **kwargs)
+    print_log(DEBUG, msg, *args, **kwargs)
 def error(msg, *args, **kwargs):
-    print_log(ERROR, 'ERROR:{}'.format(msg), *args, **kwargs)
+    print_log(ERROR, msg, *args, **kwargs)
 def warning(msg, *args, **kwargs):
-    print_log(WARNING, 'WARNING:{}'.format(msg), *args, **kwargs)
+    print_log(WARNING, msg, *args, **kwargs)
 def important(msg, *args, **kwargs):
-    print_log(IMPORTANT, 'IMPORTANT:{}'.format(msg), *args, **kwargs)
+    print_log(IMPORTANT, msg, *args, **kwargs)
 def info(msg, *args, **kwargs):
-    print_log(INFO, 'INFO:{}'.format(msg), *args, **kwargs)
+    print_log(INFO, msg, *args, **kwargs)
 
 
 web_log_history = []
 web_log_frequency = {}
 def print_log(level, msg, *args, **kwargs):
-    orig_msg = msg
-    if args or kwargs:
-        msg = msg.format(*args, **kwargs)
-    time = utime.time()
-    msg = '{}:{}'.format(utime.time(), msg)
     if LOG_LEVEL <= level:
-        print(msg)
+        if args or kwargs:
+            print(msg.format(*args, **kwargs))
     if WEB_LOG_LEVEL <= level:
-        web_log_history.append(msg)
-        if orig_msg not in web_log_frequency:
-            web_log_frequency[orig_msg] = dict(count=0)
-        web_log_frequency[orig_msg]['count'] += 1
-        web_log_frequency[orig_msg]['last_seen'] = time
+        if not kwargs:
+            kwargs = None
+        if not args:
+            args = None
+        time = utime.time()
+        web_log_history.append((time,msg,args,kwargs))
+        if msg not in web_log_frequency:
+            web_log_frequency[msg] = dict(count=0)
+        web_log_frequency[msg]['count'] += 1
+        web_log_frequency[msg]['last_seen'] = time
         purge_history()
 
 
