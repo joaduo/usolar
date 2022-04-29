@@ -8,6 +8,12 @@ import solar
 import config
 
 
+def stream_web_log():
+    for l in reversed(log.web_log_history):
+        msg = l[2].format(*l[3], **l[4])
+        yield '{}:{}: {}\n'.format(l[0], l[1], msg)
+
+
 async def serve_request(verb, path, request_trailer):
     log.debug(path)
     uasyncio.create_task(wifi_tracker.blink())
@@ -46,6 +52,9 @@ async def serve_request(verb, path, request_trailer):
             log.web_log_history.clear()
             log.web_log_frequency.clear()
         payload = ujson.dumps(dict(log=log.web_log_history, frequency=log.web_log_frequency))
+    elif path == '/logtxt':
+        content_type = 'text/plain'
+        payload = stream_web_log()
     elif path == '/wifioff':
         v = False
         if verb == webserver.POST:

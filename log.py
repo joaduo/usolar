@@ -39,12 +39,8 @@ def print_log(level, msg, *args, **kwargs):
         if args or kwargs:
             print(msg.format(*args, **kwargs))
     if WEB_LOG_LEVEL <= level:
-        if not kwargs:
-            kwargs = None
-        if not args:
-            args = None
         time = utime.time()
-        web_log_history.append((time,msg,args,kwargs))
+        web_log_history.append((time,level,msg,args,kwargs))
         if msg not in web_log_frequency:
             web_log_frequency[msg] = dict(count=0)
         web_log_frequency[msg]['count'] += 1
