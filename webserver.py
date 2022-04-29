@@ -1,34 +1,49 @@
 import uasyncio
-import log
 import ujson
 import utime
 import sys
+import log
 
 
 AUTH_TOKEN='1234'
 CONN_TIMEOUT=10
 STATUS_CODES = {
     200:'OK',
+    302:'FOUND',
     404:'NOT FOUND',
     403:'FORBIDDEN',
     401:'UNAUTHORIZED',
     500:'SERVER ERROR'}
-POST = b'POST'
-GET = b'GET'
+POST = 'POST'
+GET = 'GET'
+PUT = 'PUT'
+PATCH = 'PATCH'
+DELETE = 'DELETE'
 EXTRA_HEADERS = {'Access-Control-Allow-Origin': '*'}
+CHUNK_SIZE = 2048
 
 
 def web_page(msg):
-    return "<html><body><p>{}</p></body></html>".format(msg)
+    yield '<html><body><p>'
+    yield msg
+    yield '</p></body></html>'
 
 
 def response(status, content_type, payload, extra_headers=EXTRA_HEADERS):
-    extra_headers = '\n'.join('{}: {}'.format(k,v) for k,v in extra_headers.items())
-    if extra_headers:
-        extra_headers = '\n' + extra_headers
-    resp = 'HTTP/1.1 {} {}\nContent-Type: {}{}\nConnection: close\n\n{}'.format(
-            status, STATUS_CODES[status], content_type, extra_headers, payload)
-    return resp
+    yield 'HTTP/1.1 {} {}\n'.format(status, STATUS_CODES[status])
+    yield 'Content-Type: {}\n'.format(content_type)
+    for k,v in extra_headers.items():
+        yield k
+        yield ': '
+        yield v
+        yield '\n'
+    yield 'Connection: close\n\n'
+    yield payload
+
+
+def redirect(location, status=302):
+    yield 'HTTP/1.1 {} {}\n'.format(status, STATUS_CODES[status])
+    yield 'Location: {}\n'.format(location)
 
 
 class UnauthorizedError(Exception):
@@ -38,7 +53,8 @@ class UnauthorizedError(Exception):
 class StopWebServer(Exception):
     pass
 
-def extract_json(request):
+
+async def extract_json(request, timeout=CONN_TIMEOUT):
     log.garbage_collect()
     msg = ujson.loads(request[request.rfind(b'\r\n\r\n')+4:])
     if msg.get('auth_token') != AUTH_TOKEN:
@@ -46,27 +62,39 @@ def extract_json(request):
     return msg['payload']
 
 
-CHUNK_SIZE = 6000
 def serve_file(path, replacements=None):
-    """
-    :param path:
-    :param replacements: BEWARE, this is tricky because it won't accept cross chunks replacements
-    """
+    if replacements:
+        return yield_lines(path, replacements)
+    return yield_chunks(path)
+
+
+def yield_chunks(path):
     with open(path) as fp:
         chunk = fp.read(CHUNK_SIZE)
         while chunk:
-            if replacements:
-                for k,v in replacements.items():
-                    chunk = chunk.replace(k,v)
             yield chunk
             log.garbage_collect()
             chunk = fp.read(CHUNK_SIZE)
 
+
+def yield_lines(path, replacements):
+    with open(path) as fp:
+        chunk = fp.readline()
+        size = 0
+        while chunk:
+            for k,v in replacements.items():
+                chunk = chunk.replace(k,v)
+            yield chunk
+            size += len(chunk)
+            if size // CHUNK_SIZE:
+                log.garbage_collect()
+                size = size % CHUNK_SIZE
+            chunk = fp.readline()
+
+
 class Server:
-    static_path = None # b'/static/'
-    # BEWARE, this is tricky because it won't accept cross chunks replacements
-    # The easiest way is to make the file smaller than 1 chunk
-    templates_variables = {}
+    static_path = None
+    static_files_replacements = {}
     def __init__(self, serve_request, host='0.0.0.0', port=80, backlog=5, timeout=CONN_TIMEOUT):
         self.serve_request = serve_request
         self.host = host
@@ -86,47 +114,55 @@ class Server:
             request = await uasyncio.wait_for(sreader.readline(), self.timeout)
             request_trailer = await uasyncio.wait_for(sreader.read(-1), self.timeout)
             log.debug('request={request!r}, conn_id={conn_id}', request=request, conn_id=conn_id)
-            verb, path = request.split()[0:2]
-            resp_generator = None
+            verb, path = request.decode('utf8').split()[0:2]
             try:
                 if self.static_path and path.startswith(self.static_path) and verb == GET:
                     resp = self.serve_static(path)
                 else:
                     resp = await self.serve_request(verb, path, request_trailer)
-                if isinstance(resp, tuple):
-                    resp, resp_generator = resp
             except UnauthorizedError as e:
                 resp = response(401, 'text/html', web_page('{} {!r}'.format(e,e)))
-            swriter.write(resp)
-            if resp_generator:
-                for l in resp_generator:
-                    swriter.write(l)
-                    await swriter.drain()
+            await self.send_response(swriter, resp)
         except StopWebServer:
             raise
         except Exception as e:
             msg = 'Exception e={e} e={e!r} conn_id={conn_id}'.format(e=e, conn_id=conn_id)
             log.debug(msg)
             sys.print_exception(e)
-            swriter.write(response(500, 'text/html', web_page(msg)))
+            # If we already sent headers, we can't undo things here (but we accept such risk)
+            await self.send_response(swriter, response(500, 'text/html', web_page(msg)))
         finally:
             await swriter.drain()
             log.debug('Disconnect conn_id={conn_id}.', conn_id=conn_id)
             swriter.close()
             await swriter.wait_closed()
             log.debug('Socket closed conn_id={conn_id}.', conn_id=conn_id)
+            log.garbage_collect()
     async def close(self):
         log.debug('Closing server.')
         self.server.close()
         await self.server.wait_closed()
         log.info('Server closed.')
+    async def send_response(self, swriter, resp):
+        if isinstance(resp, (str, bytes)):
+            if resp:
+                swriter.write(resp)
+                return len(resp)
+            return 0
+        else:
+            count = 0
+            for l in resp:
+                count += await self.send_response(swriter, l)
+                if count // CHUNK_SIZE:
+                    await swriter.drain()
+                    count = count % CHUNK_SIZE
+            return count
     def serve_static(self, path):
         if self.file_exists(path):
             content_type = 'text/html'
-            if path.endswith(b'.js'):
+            if path.endswith('.js'):
                 content_type = 'application/javascript'
-            resp = response(200, content_type, '')
-            return resp, serve_file(path, self.templates_variables)
+            return response(200, content_type, serve_file(path, self.static_files_replacements))
         return response(404, 'text/html', web_page('404 Not Found'))
     def file_exists(self, path):
         try:
@@ -139,13 +175,13 @@ class Server:
 
 def main():
     async def serve_request(verb, path, request_trailer):
-        log.info('Serving {v} {p}', v=verb, p=path)
-        status = 200
-        content_type = 'text/html'
-        payload = web_page('<h2>Trailer</h2><pre>{}</pre>'.format(request_trailer.decode('utf8')))
-        return response(status, content_type, payload)
+        if path == '/redirect':
+            return redirect('http://192.168.2.107/static/client.html')
+        else:
+            return response(200, 'text/html', web_page(
+                '<h2>Hellow World</h2><pre>{}</pre>'.format(request_trailer.decode('utf8'))))
     server = Server(serve_request)
-    server.static_path = b'/static/'
+    server.static_path = '/static/'
     log.garbage_collect()
     try:
         uasyncio.run(server.run())
