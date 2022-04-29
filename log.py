@@ -42,7 +42,7 @@ def print_log(level, msg, *args, **kwargs):
         time = utime.time()
         web_log_history.append((time,level,msg,args,kwargs))
         if msg not in web_log_frequency:
-            web_log_frequency[msg] = dict(count=0)
+            web_log_frequency[msg] = dict(count=0, level=level)
         web_log_frequency[msg]['count'] += 1
         web_log_frequency[msg]['last_seen'] = time
         purge_history()

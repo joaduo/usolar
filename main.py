@@ -14,6 +14,12 @@ def stream_web_log():
         yield '{}:{}: {}\n'.format(l[0], l[1], msg)
 
 
+def stream_web_log_frequency():
+    for k in sorted(log.web_log_frequency):
+        v = log.web_log_frequency[k]
+        yield '{}:{}: {}: {}\n'.format(v['last_seen'], v['level'], k, v['count'])
+
+
 async def serve_request(verb, path, request_trailer):
     log.debug(path)
     uasyncio.create_task(wifi_tracker.blink())
@@ -52,9 +58,12 @@ async def serve_request(verb, path, request_trailer):
             log.web_log_history.clear()
             log.web_log_frequency.clear()
         payload = ujson.dumps(dict(log=log.web_log_history, frequency=log.web_log_frequency))
-    elif path == '/logtxt':
+    elif path == '/logs':
         content_type = 'text/plain'
         payload = stream_web_log()
+    elif path == '/logfrequency':
+        content_type = 'text/plain'
+        payload = stream_web_log_frequency()
     elif path == '/wifioff':
         v = False
         if verb == webserver.POST:
