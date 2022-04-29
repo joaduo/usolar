@@ -91,7 +91,6 @@
         else
             this.manager = cfg
         if(this.manager.hasOwnProperty('history')){
-            this.history = this.manager.history
             delete this.manager.history
         }
       },
@@ -114,9 +113,6 @@
       },
       async wifiOff(){
         await postAPI("wifioff")
-      },
-      async stopWebserver(){
-        await postAPI("stopwebserver")
       },
       async resetServer(){
         await postAPI("reset")
@@ -148,7 +144,7 @@
     <hr/>
     <h2>Manager</h2>
     <p><input type='checkbox' id='max_size' v-model='manager.enabled'/> enabled </p>
-    <p><input type='number' id='max_size' v-model='manager.history_size'/> history size </p>
+    <p><input type='number' id='max_size' v-model='manager.history_size'/> tracking history size </p>
     <p><input type='number' id='period_tics' v-model='manager.period_tics'/> period in tics </p>
     <p><input type='number' id='inverter_tracker__detections_size' v-model='manager.inverter_tracker__detections_size'/> detections size </p>
     <p><button id='setManager' class='btn btn_stop' @click='setManager()'>Set</button>
@@ -156,9 +152,8 @@
     <p><pre>{{manager}}</pre></p>
     <p/>
     <hr/>
-    <p><button id='resiston' class='btn btn_stop' @click='toggleResistance()'>Toggle resistance</button> {{resistance}}</p>
+    <p><button id='resiston' class='btn btn_stop' @click='toggleResistance()'>Toggle resistance</button> Is on: {{resistance}}</p>
     <hr/>
-    <p><button id='stopwebserver' class='btn btn_stop' @click='stopWebserver()'>Stop webserver</button></p>
     <p><button id='resetServer' class='btn btn_stop' @click='resetServer()'>Reset webserver</button></p>
     <p><button id='wifiOff' class='btn btn_stop' @click='wifiOff()'>Wifi Off</button></p>
     <hr/>
@@ -167,15 +162,15 @@
     <p><input type='number' id='log_level' v-model='logCfg.log_level'/> console log level </p>
     <p><input type='number' id='web_log_level' v-model='logCfg.web_log_level'/> web log level </p>
     <p><input type='number' id='web_log_size' v-model='logCfg.web_log_size'/> log size </p>
-    <p><button id='setLogCfg' class='btn btn_stop' @click='setLogCfg()'>Set</button></p>
-    <p><button id='getLogCfg' class='btn' @click='getLogCfg()'>Get</button></p>
+    <p><button id='setLogCfg' class='btn btn_stop' @click='setLogCfg()'>Set</button>
+    <button id='getLogCfg' class='btn' @click='getLogCfg()'>Get</button></p>
     <p/>
     <hr/>
-    <p><button id='logHistory' class='btn' @click='getLogHistory()'> Web Log</button></p>
+    <p><button id='logHistory' class='btn' @click='getLogHistory()'>Get Web Log</button></p>
     <p><pre>{{logHistory}}</pre></p>
     <p/>
     <hr/>
-    <p><button id='refreshHistory' class='btn' @click='refreshHistory()'>Tracking History</button></p>
+    <p><button id='refreshHistory' class='btn' @click='refreshHistory()'>Get Tracking History</button></p>
     <p><pre>{{history}}</pre></p>
     <p/>
   </div>
