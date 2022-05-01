@@ -54,7 +54,7 @@ class StopWebServer(Exception):
     pass
 
 
-async def extract_json(request, timeout=CONN_TIMEOUT):
+def extract_json(request):
     log.garbage_collect()
     msg = ujson.loads(request[request.rfind(b'\r\n\r\n')+4:])
     if msg.get('auth_token') != AUTH_TOKEN:
