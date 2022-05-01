@@ -26,6 +26,7 @@
   <script type='module'>
     import { createApp } from '/static/petite-vue-module.min.js'
     var host = '@=SERVER_ADDRESS=@'
+    var auth_token = '@=AUTH_TOKEN=@'
 
     async function getAPI(endpoint){
         let url = host + '/' + endpoint;
@@ -57,7 +58,8 @@
 
     async function postAPI(endpoint, payload){
         let url = host + '/' + endpoint;
-        let data = {'auth_token':'1234', 'payload':payload}
+        let data = {'auth_token': auth_token,
+                    'payload':payload}
         let headers =  {
             'Content-type': 'text/plain'
         };
