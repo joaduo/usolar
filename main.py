@@ -11,13 +11,13 @@ import config
 def stream_web_log():
     for l in reversed(log.web_log_history):
         msg = l[2].format(*l[3], **l[4])
-        yield '{}:{}: {}\n'.format(l[0], l[1], msg)
+        yield '{}:{}: {}\n'.format(l[0], log.INT_TO_LABEL[l[1]], msg)
 
 
 def stream_web_log_frequency():
     for k in sorted(log.web_log_frequency):
         v = log.web_log_frequency[k]
-        yield '{}:{}: {}: {}\n'.format(v['last_seen'], v['level'], k, v['count'])
+        yield '{}:{}: {}: {}\n'.format(v['last_seen'], log.INT_TO_LABEL[v['level']], k, v['count'])
 
 
 async def serve_request(verb, path, request_trailer):
@@ -29,7 +29,7 @@ async def serve_request(verb, path, request_trailer):
         payload = ujson.dumps(solar_manager.latest_read())
     elif path == '/history':
         if verb == webserver.POST:
-            cfg = await webserver.extract_json(request_trailer)
+            cfg = webserver.extract_json(request_trailer)
             solar_manager.set_json(cfg)
         payload = ujson.dumps(solar_manager.get_json())
     elif path == '/resistance':
@@ -46,7 +46,7 @@ async def serve_request(verb, path, request_trailer):
         payload = ujson.dumps('')
     elif path == '/logcfg':
         if verb == webserver.POST:
-            cfg = await webserver.extract_json(request_trailer)
+            cfg = webserver.extract_json(request_trailer)
             log.LOG_LEVEL = cfg.get('log_level', log.LOG_LEVEL)
             log.WEB_LOG_LEVEL = cfg.get('web_log_level', log.WEB_LOG_LEVEL)
             log.WEB_LOG_SIZE = cfg.get('web_log_size', log.WEB_LOG_SIZE)
