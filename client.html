@@ -23,7 +23,7 @@
 
 <body>
 
-  <script type="module">
+  <script type='module'>
     import { createApp } from '/static/petite-vue-module.min.js'
     var host = '@=SERVER_ADDRESS=@'
 
@@ -33,29 +33,42 @@
             'Content-type': 'text/plain'
         };
         let request = {
-            method:"GET",
+            method:'GET',
             headers
         };
-        let page = await fetch(url,request);
+        let page = await fetch(url, request);
         let json = await page.json();
         console.log(json);
         return json
     }
 
+    async function getAPIText(endpoint){
+        let url = host + '/' + endpoint;
+        let headers =  {
+            'Content-type': 'text/plain'
+        };
+        let request = {
+            method:'GET',
+            headers
+        };
+        let page = await fetch(url, request);
+        return await page.text();
+    }
+
     async function postAPI(endpoint, payload){
         let url = host + '/' + endpoint;
-        let data = {"auth_token":"1234", "payload":payload}
+        let data = {'auth_token':'1234', 'payload':payload}
         let headers =  {
             'Content-type': 'text/plain'
         };
         //console.log(headers)
         console.log(data)
         let request = {
-            method:"POST",
+            method:'POST',
             body:JSON.stringify(data),
             headers
         };
-        let page = await fetch(url,request);
+        let page = await fetch(url, request);
         let json = await page.json();
         console.log(json);
         return json
@@ -70,7 +83,8 @@
       resistance: null,
       logLevel: 20,
       logCfg: {},
-      logHistory: {},
+      logHistory: '',
+      webLogFrequency: '',
       async statusRefresh(){
         this.refresh = ! this.refresh
         this.getStatus(true)
@@ -101,7 +115,8 @@
         this.logLevel = await postAPI('loglevel', this.logLevel)
       },
       async getLogHistory(){
-        this.logHistory = await getAPI('log')
+        this.logHistory = await getAPIText('logs')
+        this.webLogFrequency = await getAPIText('logfrequency')
       },
       async setLogCfg(){
         this.getLogCfg(await postAPI('logcfg', this.logCfg))
@@ -112,10 +127,10 @@
         this.logCfg = cfg
       },
       async wifiOff(){
-        await postAPI("wifioff")
+        await postAPI('wifioff')
       },
       async resetServer(){
-        await postAPI("reset")
+        await postAPI('reset')
       },
       async getResistance(){
         this.resistance = (await getAPI('resistance')).value
@@ -131,12 +146,12 @@
     }).mount()
   </script>
 
-  <div v-scope @vue:mounted="mounted">
+  <div v-scope @vue:mounted='mounted'>
     <p><button id='status' class='btn' @click='statusRefresh()'>Refresh {{refresh}} </button>
        <input type='number' id='refresh-period' v-model='refreshPeriod'/> period sec</p>
       <p>
-        <ul id="runningList">
-          <li v-for="value, name in status.devices_read">
+        <ul id='runningList'>
+          <li v-for='value, name in status.devices_read'>
             {{ name }}: {{ value }}
           </li>
         </ul>
@@ -167,7 +182,10 @@
     <p/>
     <hr/>
     <p><button id='logHistory' class='btn' @click='getLogHistory()'>Get Web Log</button></p>
+    <p><h2 v-if='logHistory'>Latest log</h2></p>
     <p><pre>{{logHistory}}</pre></p>
+    <p><h2 v-if='webLogFrequency'>Frequency</h2></p>
+    <p><pre>{{webLogFrequency}}</pre></p>
     <p/>
     <hr/>
     <p><button id='refreshHistory' class='btn' @click='refreshHistory()'>Get Tracking History</button></p>
