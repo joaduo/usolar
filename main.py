@@ -29,7 +29,7 @@ def devicesread(verb, _):
     return solar_manager.latest_read()
 
 @app.json()
-def history(verb, cfg):
+def managercfg(verb, cfg):
     if verb == webserver.POST:
         solar_manager.set_json(cfg)
     return solar_manager.get_json()

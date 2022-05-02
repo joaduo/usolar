@@ -99,14 +99,14 @@
         }
       },
       async setManager(){
-        this.getManager(await postAPI('history', this.manager))
+        this.getManager(await postAPI('managercfg', this.manager))
       },
       async getManager(cfg){
         if(!cfg)
-            this.manager = await getAPI('history')
+            this.manager = await getAPI('managercfg')
         else
             this.manager = cfg
-        if(this.manager.hasOwnProperty('history')){
+        if(this.manager.hasOwnProperty('managercfg')){
             delete this.manager.history
         }
       },
